@@ -418,6 +418,32 @@ class XTB:
         MODIFY	    3	    order modify, only used in the tradeTransaction  command
         DELETE	    4	    order delete, only used in the tradeTransaction  command
         """
+    def get_current_price(self, symbol):
+        price = self.get_Candles("M1",symbol,qty_candles=1)
+        price = price[1]["open"]+price[1]["close"]
+        price = price / 100.0
+        return price
+
+    def make_Trade_debug(self, symbol, cmd, transaction_type, volume, comment="", order=0, sl=0, tp=0, days=0, hours=0, minutes=0):
+        price = self.get_Candles("M1",symbol,qty_candles=1)
+        price = price[1]["open"]+price[1]["close"]
+
+        delay = self.to_milliseconds(days=days, hours=hours, minutes=minutes)
+        if delay==0:
+            expiration = self.get_ServerTime() + self.to_milliseconds(minutes=1)
+        else:
+            expiration = self.get_ServerTime() + delay
+        
+        expiration = 0
+        price = price / 100.0
+
+        tp_percent = 0.003 # 3.0%
+
+        tp = float(int(price + ((tp_percent * price) if cmd == 0 else (-tp_percent * price)) + 0.5))
+        if symbol == "DE40":
+            tp = float(int(price*10 + ((tp_percent * price*10) if cmd == 0 else (-tp_percent * price*10)) + 0.5))
+
+        return price, tp
 
     def check_Trade(self, order):
         trade ={
