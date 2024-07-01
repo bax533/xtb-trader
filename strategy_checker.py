@@ -31,24 +31,38 @@ def dict_values_list(lines_dict):
 
 results = []
 
-SMALL_PERIODS = [i for i in range(5, 31)]
-MIDDLE_PERIODS = [i for i in range(5, 41)]
+SMALL_PERIODS = [i for i in range(5, 30)]
+MIDDLE_PERIODS = [i for i in range(6, 41)]
 
 CHART_PERIODS = ["M15", "M30", "H1", "H4", "D1"]
 SYMBOL = "BITCOIN"
 
+
+combinations = list(product(SMALL_PERIODS, MIDDLE_PERIODS))
+
+num_of_candles = 600
+
 for PERIOD in CHART_PERIODS:
     print("CHART PERIOD:", PERIOD)
-    for CONFIG in product(SMALL_PERIODS, MIDDLE_PERIODS):
+    sleep(1)
+    candles = API.get_Candles(PERIOD, SYMBOL, qty_candles=num_of_candles)[1:]
+    sleep(1)
+    for CONFIG in combinations:
 
         smallest_period = CONFIG[0]
         middle_period = CONFIG[1]
         biggest_period = CONFIG[1]
 
+        if smallest_period >= middle_period:
+            continue
+
+        RUN_NAME = str(SYMBOL)+'_'+str(PERIOD)+'_'+str(smallest_period)+'_'+str(middle_period)+'_'+str(biggest_period)
+        print(RUN_NAME, "CURRENT RUN")
+
         run = wandb.init(
             # Set the project where this run will be logged
-            name=str(SYMBOL)+'_'+str(PERIOD)+'_'+str(smallest_period)+'_'+str(middle_period)+'_'+str(biggest_period),
-            project="trading_profit_strategy_validation",
+            name=RUN_NAME,
+            project="trader_strategy_check_3",
             # Track hyperparameters and run metadata
             config={
                 "CHART_PERIOD": PERIOD,
@@ -70,13 +84,8 @@ for PERIOD in CHART_PERIODS:
         strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
         trader = DebugTrader(SYMBOL, 0.05, strat)
 
-        num_of_candles = 600
         start_it = 45
         end_it = num_of_candles - start_it - 1
-
-
-        candles = API.get_Candles(PERIOD, SYMBOL, qty_candles=num_of_candles)[1:]
-        sleep(0.75)
 
         xs = []
         ys = []
@@ -116,7 +125,11 @@ for PERIOD in CHART_PERIODS:
             # )
 
             # plt.scatter([xs[it]], [ys[it]], color=colors[it], marker=markers[it])
+
             wandb.log({"current_money": trader.money, "current_price": cur_price})
+
+            if i == end_it - 1:
+                trader.CloseCurrent(cur_price)
 
 
         # plt.plot(xs, emas_s, color='cyan')
@@ -125,5 +138,7 @@ for PERIOD in CHART_PERIODS:
 
         # 9444.00 reference account
         wandb.log({"final_money": trader.money, "chart_period": PERIOD, "smallest_period": smallest_period, "middle_period" : middle_period, "biggest_period": biggest_period})
-
+        run.finish()
+        wandb.finish()
+        sleep(1)
 API.logout()

@@ -235,7 +235,6 @@ class DebugTrader:
         self.strategy = strategy
         self.program_start = True
         self.money = initial_money
-        self.current_tp = 9999999999
     
     def Update(self, lines_dict, current_value):
         try:
@@ -258,37 +257,26 @@ class DebugTrader:
             sleep(30)
 
     def Short(self, price):
-        if self.program_start:
-            self.program_start = False
-            return True
-
         self.status = TraderStatus.SHORT
 
-        tp = price - price * 0.003
+        if self.program_start:
+            return True
+
         self.money -= (price * self.volume) + (price * self.volume) * 0.01
-        self.current_tp = tp
 
     def Long(self, price):
+        self.status = TraderStatus.LONG
+
+        if self.program_start:
+            return True
+
+        self.money -= (price * self.volume) + (price * self.volume) * 0.01
+
+    def CloseCurrent(self, current_price, newStatus = TraderStatus.IDLE):   
+        self.status = newStatus
         if self.program_start:
             self.program_start = False
             return True
 
-        self.status = TraderStatus.LONG
-
-        tp = price + price * 0.003
-        self.money -= (price * self.volume) + (price * self.volume) * 0.01
-        self.current_tp = tp
-
-    def CheckTP(self, current_price):
-        if self.status == TraderStatus.SHORT:
-            return current_price <= self.current_tp
-        elif self.status == TraderStatus.LONG:
-            return current_price >= self.current_tp
-
-        return False
-
-    def CloseCurrent(self, current_price, newStatus = TraderStatus.IDLE):
-        self.status = newStatus
         
         self.money += current_price * self.volume
-        self.current_tp = 99999999999
