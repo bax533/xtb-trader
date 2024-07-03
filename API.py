@@ -1,5 +1,6 @@
 import websocket, json, openpyxl
 from datetime import datetime, timedelta
+from time import sleep
 
 class XTB:
     __version__ = "1.0"
@@ -24,7 +25,16 @@ class XTB:
         }
         login_json = json.dumps(login)
         #Sending Login Request
-        result = self.send(login_json)
+        wasSent = False
+        while not wasSent:
+            try:
+                result = self.send(login_json)
+                wasSent = True
+            except:
+                print("error sending login json! sleeping 5s")
+                self.connect()
+                sleep(5)
+
         result = json.loads(result)
         status = result["status"]
         if str(status)=="True":
@@ -343,8 +353,14 @@ class XTB:
         else:
             expiration = self.get_ServerTime() + delay
         
+        price_multiplier_dict = dict({
+            "DE40" : 0.01,
+            "US100" : 0.01,
+            "EURUSD" : 0.00001
+        })
+
         expiration = 0
-        price = price / 100.0
+        price = price * price_multiplier_dict[symbol]
 
         tp_percent = 0.003 # 2.0%
 
@@ -368,7 +384,7 @@ class XTB:
             "price": price,
             "sl": sl,
             "symbol": symbol,
-            "tp": tp ,
+            "tp": 0,
             "type": transaction_type,
             "volume": volume
         }

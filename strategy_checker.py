@@ -10,7 +10,13 @@ import time
 import itertools
 from itertools import product
 import wandb
-wandb.login()
+
+_WANDB = True
+_WANDB_PROJECT_NAME = "trading_eurusd_parameter_check_SHORTING_ONLY"
+_PLOT = False
+
+if _WANDB:
+    wandb.login()
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -31,16 +37,20 @@ def dict_values_list(lines_dict):
 
 results = []
 
-SMALL_PERIODS = [i for i in range(5, 30)]
-MIDDLE_PERIODS = [i for i in range(6, 41)]
+SMALL_PERIODS = [i for i in range(5, 25)]
+MIDDLE_PERIODS = [i for i in range(8, 40)]
 
-CHART_PERIODS = ["M15", "M30", "H1", "H4", "D1"]
-SYMBOL = "BITCOIN"
+CHART_PERIODS = ["M5"]
+SYMBOL = "EURUSD"
 
+VOLUME = 0.4
+PIPS_SIZE = 0.0001
+PIPS_VALUE = 100000 * PIPS_SIZE * VOLUME # USD
+print(PIPS_VALUE, "PIPS_VALUE")
 
 combinations = list(product(SMALL_PERIODS, MIDDLE_PERIODS))
 
-num_of_candles = 600
+num_of_candles = 900
 
 for PERIOD in CHART_PERIODS:
     print("CHART PERIOD:", PERIOD)
@@ -51,94 +61,102 @@ for PERIOD in CHART_PERIODS:
 
         smallest_period = CONFIG[0]
         middle_period = CONFIG[1]
-        biggest_period = CONFIG[1]
 
-        if smallest_period >= middle_period:
-            continue
+        for b in range(6):
+            biggest_period = CONFIG[1] + b
 
-        RUN_NAME = str(SYMBOL)+'_'+str(PERIOD)+'_'+str(smallest_period)+'_'+str(middle_period)+'_'+str(biggest_period)
-        print(RUN_NAME, "CURRENT RUN")
+            if smallest_period >= middle_period:
+                continue
 
-        run = wandb.init(
-            # Set the project where this run will be logged
-            name=RUN_NAME,
-            project="trader_strategy_check_3",
-            # Track hyperparameters and run metadata
-            config={
-                "CHART_PERIOD": PERIOD,
-                "smallest_period": smallest_period,
-                "middle_period": middle_period,
-                "biggest_period": biggest_period,
-                "symbol": SYMBOL,
-                "STARTING_BALANCE": 10000,
-                "NUM_OF_CANDLES": 600
-            },
-        )
+            RUN_NAME = str(SYMBOL)+'_'+str(PERIOD)+'_'+str(smallest_period)+'_'+str(middle_period)+'_'+str(biggest_period)
+            print(RUN_NAME, "CURRENT RUN")
 
-        us100_lines_M = {
-            (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period),
-            (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period),
-            (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period),
-        }
+            if _WANDB:
+                run = wandb.init(
+                    # Set the project where this run will be logged
+                    name=RUN_NAME,
+                    project=_WANDB_PROJECT_NAME + "_" + PERIOD,
+                    # Track hyperparameters and run metadata
+                    config={
+                        "CHART_PERIOD": PERIOD,
+                        "smallest_period": smallest_period,
+                        "middle_period": middle_period,
+                        "biggest_period": biggest_period,
+                        "symbol": SYMBOL,
+                        "NUM_OF_CANDLES": num_of_candles
+                    },
+                )
 
-        strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
-        trader = DebugTrader(SYMBOL, 0.05, strat)
+            us100_lines_M = {
+                (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period),
+                (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period),
+                (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period),
+            }
 
-        start_it = 45
-        end_it = num_of_candles - start_it - 1
+            strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
+            trader = DebugTrader(SYMBOL, VOLUME, strat, PIPS_SIZE, PIPS_VALUE)
 
-        xs = []
-        ys = []
-        markers = []
-        colors = []
+            start_it = 42
+            end_it = num_of_candles - start_it - 1
 
-        emas_s = []
-        emas_m = []
-        emas_b = []
+            xs = []
+            ys = []
+            markers = []
+            colors = []
 
-        start = time.time()
+            emas_s = []
+            emas_m = []
+            emas_b = []
 
-        for i in range(start_it, end_it):
-            it = i - start_it
+            start = time.time()
 
-            xs.append(i)
-            for key, line in us100_lines_M.items():
-                line.UpdateValueDebug(candles[i:i+start_it])
+            for i in range(start_it, end_it):
+                it = i - start_it
 
-            # emas_s.append(us100_lines_M[(PERIOD, smallest_period)].value/100.0)
-            # emas_m.append(us100_lines_M[(PERIOD, middle_period)].value/100.0)
-            # emas_b.append(us100_lines_M[(PERIOD, biggest_period)].value/100.0)
+                xs.append(i)
+                for key, line in us100_lines_M.items():
+                    line.UpdateValueDebug(candles[i:i+start_it])
 
-            cur_price = (candles[i+start_it+1]["open"] + candles[i+start_it+1]["close"])/100.0
-            # ys.append(cur_price)
-            
-            trader.Update(us100_lines_M, cur_price)
-            trader.Update(us100_lines_M, cur_price)
+                if _PLOT:
+                    emas_s.append(us100_lines_M[(PERIOD, smallest_period)].value/100000.000000)
+                    emas_m.append(us100_lines_M[(PERIOD, middle_period)].value/100000.000000)
+                    emas_b.append(us100_lines_M[(PERIOD, biggest_period)].value/100000.000000)
 
-            # colors.append(
-            #     'green' if trader.status == TraderStatus.LONG else
-            #     ('red' if trader.status == TraderStatus.SHORT else 'black')
-            # )
-            # markers.append(
-            #     '^' if trader.status == TraderStatus.LONG else
-            #     ('v' if trader.status == TraderStatus.SHORT else 'o')
-            # )
+                cur_price = (candles[i+start_it+1]["open"] + candles[i+start_it+1]["close"])/100000.00000
+                
+                if _PLOT:
+                    ys.append(cur_price)
+                
+                trader.Update(us100_lines_M, cur_price)
+                trader.Update(us100_lines_M, cur_price)
 
-            # plt.scatter([xs[it]], [ys[it]], color=colors[it], marker=markers[it])
+                if _PLOT:
+                    colors.append(
+                        'green' if trader.status == TraderStatus.LONG else
+                        ('red' if trader.status == TraderStatus.SHORT else 'black')
+                    )
+                    markers.append(
+                        '^' if trader.status == TraderStatus.LONG else
+                        ('v' if trader.status == TraderStatus.SHORT else 'o')
+                    )
 
-            wandb.log({"current_money": trader.money, "current_price": cur_price})
+                if _PLOT:
+                    plt.scatter([xs[it]], [ys[it]], color=colors[it], marker=markers[it])
+                
+                if _WANDB:
+                    wandb.log({"current_money": trader.profit, "current_price": cur_price})
 
-            if i == end_it - 1:
-                trader.CloseCurrent(cur_price)
+            if _PLOT:
+                print("PROFIT:", trader.profit)
+                plt.plot(xs, emas_s, color='cyan')
+                plt.plot(xs, emas_m, color='blue')
+                plt.plot(xs, ys, color='black')
+                plt.show()
 
-
-        # plt.plot(xs, emas_s, color='cyan')
-        # plt.plot(xs, emas_m, color='blue')
-        # plt.plot(xs, ys, color='black')
-
-        # 9444.00 reference account
-        wandb.log({"final_money": trader.money, "chart_period": PERIOD, "smallest_period": smallest_period, "middle_period" : middle_period, "biggest_period": biggest_period})
-        run.finish()
-        wandb.finish()
-        sleep(1)
+            # 9444.00 reference account
+            if _WANDB:
+                wandb.log({"final_money": trader.profit, "chart_period": PERIOD, "smallest_period": smallest_period, "middle_period" : middle_period, "biggest_period": biggest_period})
+                run.finish()
+                wandb.finish()
+            sleep(1)
 API.logout()

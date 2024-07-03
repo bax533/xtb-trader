@@ -8,8 +8,6 @@ from env import username, password
 from API import XTB
 from abc import ABC, abstractmethod
 
-API = XTB(username, password)
-
 
 def ewma_linear_filter(array, window):
     alpha = 2 /(window + 1)
@@ -22,9 +20,9 @@ def dict_values_list(lines_dict):
     return [val for key, val in lines_dict.items()]
 
 
-smallest_period = 30
-middle_period = 40
-biggest_period = 45
+smallest_period = 5
+middle_period = 11
+biggest_period = 11
 
 class MA_Line:
     def __init__(self, symbol: str, chart_period: str, ema_period: int):
@@ -37,6 +35,9 @@ class MA_Line:
         self.symbol = symbol
         self.chart_period = chart_period
         self.ema_period = ema_period
+
+        self.API = XTB(username, password)
+        self.API.login()
 
     def UpdateNeighbours(self, lines):
         self.previous_above = self.line_above
@@ -60,11 +61,13 @@ class MA_Line:
                 closest_under_value = line.value
                 self.line_under = line
     
-    def UpdateValue(self):
-        sleep(1)
+    def UpdateValue(self, multiplier = 1.0):
+        sleep(0.5)
+        self.API.login()
+        sleep(0.5)
         try:
-            candles = API.get_Candles(self.chart_period, self.symbol, qty_candles=40)[1:]
-            closing_values = [candle["open"] + candle["close"] for candle in candles]
+            candles = self.API.get_Candles(self.chart_period, self.symbol, qty_candles=40)[1:]
+            closing_values = [(candle["open"] + candle["close"]) * multiplier for candle in candles]
 
             self.value = ewma_linear_filter(np.array(closing_values), self.ema_period)[-1]
         except:
@@ -164,13 +167,15 @@ class TraderStatus(Enum):
     LONG = 3
 
 class Trader:
-    def __init__(self, symbol, volume, strategy):
+    def __init__(self, symbol, volume, strategy, program_start = True):
         self.status = TraderStatus.IDLE
         self.symbol = symbol
         self.volume = volume
 
         self.strategy = strategy
-        self.program_start = True
+        self.program_start = program_start
+        self.API = XTB(username, password)
+        self.API.login()
     
     def Update(self, lines_dict):
         try:
@@ -193,48 +198,60 @@ class Trader:
 
     def Short(self):
         sleep(0.5)
-        API.login()
+        self.API.login()
         self.status = TraderStatus.SHORT
         if self.program_start:
-            self.program_start = False
             return True
-
-        return API.make_Trade(self.symbol, 1, 0, self.volume)
+        ret = self.API.make_Trade(self.symbol, 1, 0, self.volume)
+        print("SLEEPING 15 MIN, SHORTING" if self.strategy.period == "M15" else "SHORT TRANSACTION SENT")
+        sleep(60 * 15 if self.strategy.period == "M15" else 0) # wait 15 min for next candle
+        return ret
 
     def Long(self):
         sleep(0.5)
-        API.login()
+        self.API.login()
         self.status = TraderStatus.LONG
+        if self.program_start:
+            return True
+
+        ret = self.API.make_Trade(self.symbol, 0, 0, self.volume)
+        print("SLEEPING 15 MIN, LONGING" if self.strategy.period == "M15" else "TRANSACTION SENT")
+        sleep(60 * 15 if self.strategy.period == "M15" else 0) # wait 15 min for next candle
+        return ret
+
+    def CloseCurrent(self):
+        sleep(0.5)
+        self.status = TraderStatus.IDLE
         if self.program_start:
             self.program_start = False
             return True
 
-        return API.make_Trade(self.symbol, 0, 0, self.volume)
-
-    def CloseCurrent(self):
-        sleep(0.5)
-        API.login()
-        current_trades = API.get_Trades()
+        self.API.login()
+        current_trades = self.API.get_Trades()
         ret = []
         for trade in current_trades:
             if trade["symbol"] != self.symbol:
                 continue
 
-            API.login()
-            ret.append(API.make_Trade(self.symbol, trade["cmd"], 2, self.volume, order=trade["order"]))
+            self.API.login()
+            ret.append(self.API.make_Trade(self.symbol, trade["cmd"], 2, self.volume, order=trade["order"]))
             sleep(0.75)
-        self.status = TraderStatus.IDLE
         return ret
 
 class DebugTrader:
-    def __init__(self, symbol, volume, strategy, initial_money = 10000):
+    def __init__(self, symbol, volume, strategy, PIPS_SIZE, PIPS_VALUE, DEBUG = False):
         self.status = TraderStatus.IDLE
         self.symbol = symbol
         self.volume = volume
 
+        self.PIPS_SIZE = PIPS_SIZE
+        self.PIPS_VALUE = PIPS_VALUE
+
         self.strategy = strategy
         self.program_start = True
-        self.money = initial_money
+        self.profit = 0.0
+
+        self.DEBUG = DEBUG
     
     def Update(self, lines_dict, current_value):
         try:
@@ -262,7 +279,9 @@ class DebugTrader:
         if self.program_start:
             return True
 
-        self.money -= (price * self.volume) + (price * self.volume) * 0.01
+        if self.DEBUG:
+            print("SHORTING FOR:", price)
+        self.bought_for_price = price
 
     def Long(self, price):
         self.status = TraderStatus.LONG
@@ -270,13 +289,24 @@ class DebugTrader:
         if self.program_start:
             return True
 
-        self.money -= (price * self.volume) + (price * self.volume) * 0.01
+        if self.DEBUG:
+            print("LONGING FOR:", price)
+        self.bought_for_price = price
 
-    def CloseCurrent(self, current_price, newStatus = TraderStatus.IDLE):   
+    def CloseCurrent(self, current_price, newStatus = TraderStatus.IDLE):
+        assert(self.status != TraderStatus.IDLE)
+
+        profit_multiplier = -1 if self.status == TraderStatus.SHORT else 1
+
         self.status = newStatus
         if self.program_start:
             self.program_start = False
             return True
 
+        if self.status == TraderStatus.LONG: # SHORTING ONLY CONFIGURATION
+            return False
         
-        self.money += current_price * self.volume
+        if self.DEBUG:
+            print("CLOSING FOR:", (current_price - self.bought_for_price) * profit_multiplier / self.PIPS_SIZE * self.PIPS_VALUE)
+            print("PIPS DIFFERENCE:", (current_price - self.bought_for_price) * profit_multiplier / self.PIPS_SIZE)
+        self.profit += (current_price - self.bought_for_price) * profit_multiplier / self.PIPS_SIZE * self.PIPS_VALUE
