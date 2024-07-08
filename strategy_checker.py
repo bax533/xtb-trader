@@ -12,7 +12,8 @@ from itertools import product
 import wandb
 
 _WANDB = True
-_WANDB_PROJECT_NAME = "trading_eurusd_parameter_check_SHORTING_ONLY"
+_PRINT_PRICE = False
+_WANDB_PROJECT_NAME = "trading_DE40_parameter_check_SHORTING_LONGING_1000_candles"
 _PLOT = False
 
 if _WANDB:
@@ -37,20 +38,21 @@ def dict_values_list(lines_dict):
 
 results = []
 
-SMALL_PERIODS = [i for i in range(5, 25)]
-MIDDLE_PERIODS = [i for i in range(8, 40)]
+SMALL_PERIODS = [i for i in range(1, 25)]
+MIDDLE_PERIODS = [i for i in range(2, 30)]
 
-CHART_PERIODS = ["M5"]
-SYMBOL = "EURUSD"
+CHART_PERIODS = ["M30"]
+SYMBOL = "DE40"
 
-VOLUME = 0.4
-PIPS_SIZE = 0.0001
-PIPS_VALUE = 100000 * PIPS_SIZE * VOLUME # USD
+VOLUME = 0.04
+PIPS_SIZE = 1
+PIPS_VALUE = 1 # USD
 print(PIPS_VALUE, "PIPS_VALUE")
 
 combinations = list(product(SMALL_PERIODS, MIDDLE_PERIODS))
 
-num_of_candles = 900
+num_of_candles = 1000
+start_it = 35
 
 for PERIOD in CHART_PERIODS:
     print("CHART PERIOD:", PERIOD)
@@ -96,7 +98,6 @@ for PERIOD in CHART_PERIODS:
             strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
             trader = DebugTrader(SYMBOL, VOLUME, strat, PIPS_SIZE, PIPS_VALUE)
 
-            start_it = 42
             end_it = num_of_candles - start_it - 1
 
             xs = []
@@ -115,14 +116,18 @@ for PERIOD in CHART_PERIODS:
 
                 xs.append(i)
                 for key, line in us100_lines_M.items():
-                    line.UpdateValueDebug(candles[i:i+start_it])
+                    line.UpdateValueDebug(candles[i:i+start_it], 10.00000)
 
                 if _PLOT:
-                    emas_s.append(us100_lines_M[(PERIOD, smallest_period)].value/100000.000000)
-                    emas_m.append(us100_lines_M[(PERIOD, middle_period)].value/100000.000000)
-                    emas_b.append(us100_lines_M[(PERIOD, biggest_period)].value/100000.000000)
+                    emas_s.append(us100_lines_M[(PERIOD, smallest_period)].value/10.000000)
+                    emas_m.append(us100_lines_M[(PERIOD, middle_period)].value/10.000000)
+                    emas_b.append(us100_lines_M[(PERIOD, biggest_period)].value/10.000000)
 
-                cur_price = (candles[i+start_it+1]["open"] + candles[i+start_it+1]["close"])/100000.00000
+                cur_price = (candles[i+start_it+1]["open"] + candles[i+start_it+1]["close"])/10.00000
+                
+                if _PRINT_PRICE:
+                    print(cur_price, "PRICE")
+                    exit()
                 
                 if _PLOT:
                     ys.append(cur_price)

@@ -9,6 +9,13 @@ from API import XTB
 from abc import ABC, abstractmethod
 
 
+sleep_time_after_transaction = dict({
+    "M30": 60*31,
+    "M15": 60*15,
+    "M5": 60*5
+})
+
+
 def ewma_linear_filter(array, window):
     alpha = 2 /(window + 1)
     b = [alpha]
@@ -20,9 +27,9 @@ def dict_values_list(lines_dict):
     return [val for key, val in lines_dict.items()]
 
 
-smallest_period = 5
-middle_period = 11
-biggest_period = 11
+smallest_period = 6
+middle_period = 16
+biggest_period = 18
 
 class MA_Line:
     def __init__(self, symbol: str, chart_period: str, ema_period: int):
@@ -74,8 +81,8 @@ class MA_Line:
             print("could not get candles", datetime.now())
             return
 
-    def UpdateValueDebug(self, candles):
-        closing_values = [candle["open"] + candle["close"] for candle in candles]
+    def UpdateValueDebug(self, candles, divider):
+        closing_values = [(candle["open"] + candle["close"])/divider for candle in candles]
         self.value = ewma_linear_filter(np.array(closing_values), self.ema_period)[-1]
 
     def GetName(self):
@@ -202,9 +209,10 @@ class Trader:
         self.status = TraderStatus.SHORT
         if self.program_start:
             return True
+
         ret = self.API.make_Trade(self.symbol, 1, 0, self.volume)
-        print("SLEEPING 15 MIN, SHORTING" if self.strategy.period == "M15" else "SHORT TRANSACTION SENT")
-        sleep(60 * 15 if self.strategy.period == "M15" else 0) # wait 15 min for next candle
+        print("SLEEPING "+ self.strategy.period + ", SHORTING")
+        sleep(sleep_time_after_transaction[self.strategy.period]) # wait one candle
         return ret
 
     def Long(self):
@@ -215,8 +223,8 @@ class Trader:
             return True
 
         ret = self.API.make_Trade(self.symbol, 0, 0, self.volume)
-        print("SLEEPING 15 MIN, LONGING" if self.strategy.period == "M15" else "TRANSACTION SENT")
-        sleep(60 * 15 if self.strategy.period == "M15" else 0) # wait 15 min for next candle
+        print("SLEEPING "+ self.strategy.period + ", LONGING")
+        sleep(sleep_time_after_transaction[self.strategy.period]) # wait one candle
         return ret
 
     def CloseCurrent(self):
@@ -303,8 +311,8 @@ class DebugTrader:
             self.program_start = False
             return True
 
-        if self.status == TraderStatus.LONG: # SHORTING ONLY CONFIGURATION
-            return False
+        # if self.status == TraderStatus.LONG: # SHORTING ONLY CONFIGURATION
+        #     return False
         
         if self.DEBUG:
             print("CLOSING FOR:", (current_price - self.bought_for_price) * profit_multiplier / self.PIPS_SIZE * self.PIPS_VALUE)
