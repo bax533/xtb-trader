@@ -20,7 +20,7 @@ from trader import Trader, StrategyUniversal, MA_Line, \
 
 SYMBOL = "EURUSD"
 VOLUME = 0.4
-PERIOD = "M15"
+PERIOD = "M5"
 
 eurusd_lines_M = {
     ("M1", smallest_period) : MA_Line(SYMBOL, "M1", smallest_period),
@@ -34,7 +34,7 @@ eurusd_lines_M = {
     ("M15", biggest_period) : MA_Line(SYMBOL, "M15", biggest_period)
 }
 
-strat = strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
+strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
 trader = Trader(SYMBOL, VOLUME, strat)
 
 while True:

@@ -2,6 +2,8 @@ import websocket, json, openpyxl
 from datetime import datetime, timedelta
 from time import sleep
 
+_DEMO = False
+
 class XTB:
     __version__ = "1.0"
 
@@ -621,7 +623,10 @@ class XTB:
         
     def connect(self):
         try:
-            self.ws=websocket.create_connection("wss://ws.xtb.com/demo")
+            if _DEMO:
+                self.ws=websocket.create_connection("wss://ws.xtb.com/demo")
+            else:
+                self.ws=websocket.create_connection("wss://ws.xtb.com/real")
             #Success
             return True
         except:
