@@ -211,7 +211,7 @@ class Trader:
             return True
 
         ret = self.API.make_Trade(self.symbol, 1, 0, self.volume)
-        print("SLEEPING "+ self.period + ", SHORTING")
+        print("SLEEPING "+ self.strategy.period + ", SHORTING")
         sleep(sleep_time_after_transaction[self.strategy.period]) # wait one candle
         return ret
 
@@ -223,7 +223,7 @@ class Trader:
             return True
 
         ret = self.API.make_Trade(self.symbol, 0, 0, self.volume)
-        print("SLEEPING "+ self.period + ", LONGING")
+        print("SLEEPING "+ self.strategy.period + ", LONGING")
         sleep(sleep_time_after_transaction[self.strategy.period]) # wait one candle
         return ret
 
