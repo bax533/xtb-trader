@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 
 
 sleep_time_after_transaction = dict({
+    "H1": 60*61,
     "M30": 60*31,
     "M15": 60*15,
     "M5": 60*5
@@ -26,10 +27,6 @@ def ewma_linear_filter(array, window):
 def dict_values_list(lines_dict):
     return [val for key, val in lines_dict.items()]
 
-
-smallest_period = 6
-middle_period = 16
-biggest_period = 18
 
 class MA_Line:
     def __init__(self, symbol: str, chart_period: str, ema_period: int):
@@ -73,8 +70,8 @@ class MA_Line:
         self.API.login()
         sleep(0.5)
         try:
-            candles = self.API.get_Candles(self.chart_period, self.symbol, qty_candles=40)[1:]
-            closing_values = [(candle["open"] + candle["close"]) * multiplier for candle in candles]
+            candles = self.API.get_Candles(self.chart_period, self.symbol, qty_candles=30)[1:]
+            closing_values = [(candle["open"] + candle["close"]) * multiplier for candle in candles][:-1] # WITHOUT CURRENT CANDLE
 
             self.value = ewma_linear_filter(np.array(closing_values), self.ema_period)[-1]
         except:
@@ -108,43 +105,6 @@ class StrategyAbstract(ABC):
     @abstractmethod
     def ShouldSellShort(self, lines_dict):
         return self.ShouldLong(lines_dict)
-
-class StrategyM5(StrategyAbstract):
-    def __init__(self):
-        return
-
-    def ShouldShort(self, lines_dict):
-        return lines_dict[("M5", smallest_period)].value < lines_dict[("M5", middle_period)].value \
-            and lines_dict[("M5", smallest_period)].value < lines_dict[("M5", biggest_period)].value
-
-    def ShouldSellShort(self, lines_dict):
-        return self.ShouldLong(lines_dict)
-
-    def ShouldLong(self, lines_dict):
-        return lines_dict[("M5", smallest_period)].value > lines_dict[("M5", middle_period)].value \
-            and lines_dict[("M5", smallest_period)].value > lines_dict[("M5", biggest_period)].value
-    
-    def ShouldSellLong(self, lines_dict):
-        return self.ShouldShort(lines_dict)
-
-
-class StrategyM30(StrategyAbstract):
-    def __init__(self):
-        return
-
-    def ShouldShort(self, lines_dict):
-        return lines_dict[("M30", smallest_period)].value < lines_dict[("M30", middle_period)].value \
-            and lines_dict[("M30", smallest_period)].value < lines_dict[("M30", biggest_period)].value
-
-    def ShouldSellShort(self, lines_dict):
-        return self.ShouldLong(lines_dict)
-
-    def ShouldLong(self, lines_dict):
-        return lines_dict[("M30", smallest_period)].value > lines_dict[("M30", middle_period)].value \
-            and lines_dict[("M30", smallest_period)].value > lines_dict[("M30", biggest_period)].value
-    
-    def ShouldSellLong(self, lines_dict):
-        return self.ShouldShort(lines_dict)
 
 class StrategyUniversal(StrategyAbstract):
     def __init__(self, period, s, m, b):
@@ -199,40 +159,56 @@ class Trader:
                 if self.strategy.ShouldSellLong(lines_dict):
                     self.CloseCurrent()
                     sleep(1)
-        except:
-            print("EXCEPTION CAUGHT, SLEEPING 30s")
+        except Exception as e:
+            print("EXCEPTION CAUGHT, SLEEPING 30s", e)
             sleep(30)
 
     def Short(self):
         sleep(0.5)
         self.API.login()
         self.status = TraderStatus.SHORT
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        print("SETTING STATUS SHORT ", current_time, " TIME (PROGRAM)")
         if self.program_start:
+            print("Returning program start")
             return True
 
         ret = self.API.make_Trade(self.symbol, 1, 0, self.volume)
-        print("SLEEPING "+ self.strategy.period + ", SHORTING")
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        print("SLEEPING "+ self.strategy.period + ", SHORTING", current_time, " TIME (PROGRAM)")
         sleep(sleep_time_after_transaction[self.strategy.period]) # wait one candle
+        print("WOKE UP!")
         return ret
 
     def Long(self):
         sleep(0.5)
         self.API.login()
         self.status = TraderStatus.LONG
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        print("SETTING STATUS LONG ", current_time, " TIME (PROGRAM)")
         if self.program_start:
+            print("Returning program start")
             return True
 
         ret = self.API.make_Trade(self.symbol, 0, 0, self.volume)
-        print("SLEEPING "+ self.strategy.period + ", LONGING")
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        print("SLEEPING "+ self.strategy.period + ", LONGING", current_time, " TIME (PROGRAM)")
         sleep(sleep_time_after_transaction[self.strategy.period]) # wait one candle
+        print("WOKE UP!")
         return ret
 
     def CloseCurrent(self):
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        print("CLOSING CURRENT", current_time, " TIME (PROGRAM)")
         sleep(0.5)
         self.status = TraderStatus.IDLE
         if self.program_start:
             self.program_start = False
-            return True
 
         self.API.login()
         current_trades = self.API.get_Trades()
@@ -311,8 +287,6 @@ class DebugTrader:
             self.program_start = False
             return True
 
-        # if self.status == TraderStatus.LONG: # SHORTING ONLY CONFIGURATION
-        #     return False
         
         if self.DEBUG:
             print("CLOSING FOR:", (current_price - self.bought_for_price) * profit_multiplier / self.PIPS_SIZE * self.PIPS_VALUE)

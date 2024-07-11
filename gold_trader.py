@@ -17,8 +17,12 @@ def dict_values_list(lines_dict):
 
 from trader import Trader, StrategyUniversal, MA_Line
 
-SYMBOL = "DE40"
-VOLUME = 0.03
+smallest_period = 9
+middle_period = 13
+biggest_period = 13
+
+SYMBOL = "GOLD"
+VOLUME = 0.01
 PERIOD = "M30"
 
 eurusd_lines_M = {
