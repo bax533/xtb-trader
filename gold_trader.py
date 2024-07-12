@@ -17,10 +17,12 @@ def dict_values_list(lines_dict):
 
 from trader import Trader, StrategyUniversal, MA_Line
 
-smallest_period, middle_period, biggest_period = (6, 16, 18)
+smallest_period = 9
+middle_period = 13
+biggest_period = 13
 
-SYMBOL = "DE40"
-VOLUME = 0.03
+SYMBOL = "GOLD"
+VOLUME = 0.04
 PERIOD = "M30"
 
 eurusd_lines_M_sell = {

@@ -2,7 +2,7 @@ import websocket, json, openpyxl
 from datetime import datetime, timedelta
 from time import sleep
 
-_DEMO = False
+_DEMO = True
 
 class XTB:
     __version__ = "1.0"
@@ -132,6 +132,11 @@ class XTB:
             start_qty = qty-qty_candles
         if qty==0:
             start_qty=0
+
+        # print("GOT CANDLES:")
+        # for candle in result["returnData"]["rateInfos"]:
+        #     print(candle)
+        #print("RESULT CANDLE EXAMPLE", result["returnData"]["rateInfos"][0])
 
         for i in range(start_qty, qty):
             candle={}
@@ -358,7 +363,8 @@ class XTB:
         price_multiplier_dict = dict({
             "DE40" : 0.01,
             "US100" : 0.01,
-            "EURUSD" : 0.00001
+            "EURUSD" : 0.00001,
+            "GOLD" : 0.01
         })
 
         expiration = 0
@@ -366,13 +372,13 @@ class XTB:
 
         tp_percent = 0.003 # 2.0%
 
-        tp = float(int(price + ((tp_percent * price) if cmd == 0 else (-tp_percent * price)) + 0.5))
-        if symbol == "DE40":
-            tp = float(int(price*10 + ((tp_percent * price*10) if cmd == 0 else (-tp_percent * price*10)) + 0.5))
+        # tp = float(int(price + ((tp_percent * price) if cmd == 0 else (-tp_percent * price)) + 0.5))
+        # if symbol == "DE40":
+        #     tp = float(int(price*10 + ((tp_percent * price*10) if cmd == 0 else (-tp_percent * price*10)) + 0.5))
 
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
-        print(symbol, "symbol", price, "PRICE",  tp, "TP", cmd, "CMD", transaction_type, "transaction_type", current_time, "TIME")
+        print(symbol, "symbol", price, "PRICE",  tp, "TP", cmd, "CMD", transaction_type, "transaction_type", current_time, "TIME (API)")
 
         if transaction_type != 0:
             tp = 0.0

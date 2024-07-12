@@ -9,8 +9,7 @@ from API import XTB
 
 API = XTB(username, password)
 
-from trader import Trader, StrategyM5, StrategyM1, MA_Line, \
-    smallest_period, middle_period, biggest_period
+from trader import Trader, StrategyM5, StrategyM1, MA_Line
 
 def ewma_linear_filter(array, window):
     alpha = 2 /(window + 1)
