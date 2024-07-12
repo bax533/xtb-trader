@@ -29,12 +29,13 @@ def dict_values_list(lines_dict):
 
 
 class MA_Line:
-    def __init__(self, symbol: str, chart_period: str, ema_period: int):
+    def __init__(self, symbol: str, chart_period: str, ema_period: int, candle_behind: bool = False):
         self.line_above = None
         self.line_under = None
         self.previous_above = None
         self.previous_under = None
         self.value = 99999999999.0
+        self.candle_behind = candle_behind
 
         self.symbol = symbol
         self.chart_period = chart_period
@@ -71,7 +72,15 @@ class MA_Line:
         sleep(0.5)
         try:
             candles = self.API.get_Candles(self.chart_period, self.symbol, qty_candles=30)[1:]
-            closing_values = [(candle["open"] + candle["close"]) * multiplier for candle in candles][:-1] # WITHOUT CURRENT CANDLE
+            closing_values = []
+
+            #print("LAST CANDLE VALUE: ", [(candle["open"] + candle["close"]) * multiplier for candle in candles][-1], " PREVIOUS CANDLE VALUE:", [(candle["open"] + candle["close"]) * multiplier for candle in candles][-2])
+
+            if self.candle_behind:
+                closing_values = [(candle["open"] + candle["close"]) * multiplier for candle in candles][:-1] # WITHOUT CURRENT CANDLE
+            else:
+                closing_values = [(candle["open"] + candle["close"]) * multiplier for candle in candles]
+
 
             self.value = ewma_linear_filter(np.array(closing_values), self.ema_period)[-1]
         except:
@@ -134,34 +143,43 @@ class TraderStatus(Enum):
     LONG = 3
 
 class Trader:
-    def __init__(self, symbol, volume, strategy, program_start = True):
+    def __init__(self, symbol, volume, strategy, program_start = True, Debug = False):
         self.status = TraderStatus.IDLE
         self.symbol = symbol
         self.volume = volume
 
+        self.previous_status = TraderStatus.IDLE
+
         self.strategy = strategy
         self.program_start = program_start
+        self.Debug = Debug
         self.API = XTB(username, password)
         self.API.login()
     
-    def Update(self, lines_dict):
+    def Update(self, lines_dict_sell, lines_dict_buy):
         try:
+            if self.Debug:
+                now = datetime.now()
+                current_time = now.strftime("%H:%M:%S")
+                print(self.previous_status, self.status, " - PREVIOUS  CURRENT", current_time, " TIME (PROGRAM)")
+                print(self.strategy.ShouldShort(lines_dict_buy), self.strategy.ShouldLong(lines_dict_buy), " - SHOULD SHORT, SHOULD LONG  (BUY)", current_time, " TIME (PROGRAM)")
+                print(self.strategy.ShouldShort(lines_dict_sell), self.strategy.ShouldLong(lines_dict_sell), " - SHOULD SHORT, SHOULD LONG  (SELL)", current_time, " TIME (PROGRAM)")
             if self.status == TraderStatus.IDLE:
-                if self.strategy.ShouldShort(lines_dict):
+                if self.strategy.ShouldShort(lines_dict_buy) and (self.previous_status == TraderStatus.LONG or self.previous_status == TraderStatus.IDLE):
                     self.Short()
-                elif self.strategy.ShouldLong(lines_dict):
+                elif self.strategy.ShouldLong(lines_dict_buy) and (self.previous_status == TraderStatus.SHORT or self.previous_status == TraderStatus.IDLE):
                     self.Long()
             elif self.status == TraderStatus.SHORT:
-                if self.strategy.ShouldSellShort(lines_dict):
+                if self.strategy.ShouldSellShort(lines_dict_sell):
                     self.CloseCurrent()
                     sleep(1)
             elif self.status == TraderStatus.LONG:
-                if self.strategy.ShouldSellLong(lines_dict):
+                if self.strategy.ShouldSellLong(lines_dict_sell):
                     self.CloseCurrent()
                     sleep(1)
         except Exception as e:
-            print("EXCEPTION CAUGHT, SLEEPING 30s", e)
-            sleep(30)
+            print("EXCEPTION CAUGHT, SLEEPING 10s", e)
+            sleep(10)
 
     def Short(self):
         sleep(0.5)
@@ -206,6 +224,7 @@ class Trader:
         current_time = now.strftime("%H:%M:%S")
         print("CLOSING CURRENT", current_time, " TIME (PROGRAM)")
         sleep(0.5)
+        self.previous_status = self.status
         self.status = TraderStatus.IDLE
         if self.program_start:
             self.program_start = False
@@ -218,7 +237,7 @@ class Trader:
                 continue
 
             self.API.login()
-            ret.append(self.API.make_Trade(self.symbol, trade["cmd"], 2, self.volume, order=trade["order"]))
+            ret.append(self.API.make_Trade(self.symbol, trade["cmd"], 2, trade["volume"], order=trade["order"]))
             sleep(0.75)
         return ret
 

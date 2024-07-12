@@ -22,13 +22,19 @@ middle_period = 13
 biggest_period = 13
 
 SYMBOL = "GOLD"
-VOLUME = 0.01
+VOLUME = 0.04
 PERIOD = "M30"
 
-eurusd_lines_M = {
+eurusd_lines_M_sell = {
     (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period),
     (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period),
     (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period)
+}
+
+eurusd_lines_M_buy = {
+    (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period, True),
+    (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period, True),
+    (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period, True)
 }
 
 strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
@@ -37,11 +43,14 @@ trader = Trader(SYMBOL, VOLUME, strat)
 starting = True
 
 while True:
-    for key, line in eurusd_lines_M.items():
+    for key, line in eurusd_lines_M_sell.items():
+        line.UpdateValue(0.01)
+        sleep(0.5)
+    for key, line in eurusd_lines_M_buy.items():
         line.UpdateValue(0.01)
         sleep(0.5)
 
-    trader.Update(eurusd_lines_M)
+    trader.Update(eurusd_lines_M_sell, eurusd_lines_M_buy)
 
     sleep(1)
 
