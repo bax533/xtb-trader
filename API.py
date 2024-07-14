@@ -120,6 +120,26 @@ class XTB:
         candles=[]
         candle={}
         qty=len(result["returnData"]["rateInfos"])
+
+        while(qty < qty_candles):
+            sleep(0.25)
+            start -= self.to_milliseconds(minutes=240)
+            CHART_LAST_INFO_RECORD ={
+                "period": period,
+                "start": start,
+                "symbol": symbol
+            }
+            candles_cmd ={
+                "command": "getChartLastRequest",
+                "arguments": {
+                    "info": CHART_LAST_INFO_RECORD
+                }
+            }
+            candles_json = json.dumps(candles_cmd)
+            result = self.send(candles_json)
+            result = json.loads(result)
+            qty=len(result["returnData"]["rateInfos"])
+
         candle["digits"]=result["returnData"]["digits"]
         if qty_candles==0:
             candle["qty_candles"]=qty
@@ -129,7 +149,7 @@ class XTB:
         if qty_candles==0:
             start_qty = 0
         else:
-            start_qty = qty-qty_candles
+            start_qty = max(0,qty-qty_candles)
         if qty==0:
             start_qty=0
 
@@ -364,7 +384,8 @@ class XTB:
             "DE40" : 0.01,
             "US100" : 0.01,
             "EURUSD" : 0.00001,
-            "GOLD" : 0.01
+            "GOLD" : 0.01,
+            "BITCOINCASH": 0.01
         })
 
         expiration = 0

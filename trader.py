@@ -86,8 +86,9 @@ class MA_Line:
 
 
             self.value = ewma_linear_filter(np.array(closing_values), self.ema_period)[-1]
-        except:
-            print("could not get candles", datetime.now())
+        except Exception as e:
+            print("could not get candles", self.chart_period, self.ema_period, self.symbol, datetime.now())
+            print("exception: ", e)
             return
 
     def UpdateValueDebug(self, candles, divider):
