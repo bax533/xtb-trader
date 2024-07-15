@@ -40,11 +40,14 @@ class MA_Line:
         self.chart_period = chart_period
         self.ema_period = ema_period
 
-        if _DEMO:
-            username = demo_username
-            password = demo_password
+        user = username
+        passw = password
 
-        self.API = XTB(username, password)
+        if _DEMO:
+            user = demo_username
+            passw= demo_password
+
+        self.API = XTB(user, passw)
         self.API.login()
 
     def UpdateNeighbours(self, lines):
@@ -179,20 +182,31 @@ class StrategyUniversal(StrategyAbstract):
         self.s = s
         self.m = m
         self.b = b
-        return
 
     def ShouldShort(self, lines_dict):
         return lines_dict[(self.period, self.s )].value < lines_dict[(self.period, self.m)].value \
             and lines_dict[(self.period, self.s )].value < lines_dict[(self.period, self.b)].value
 
-    def ShouldSellShort(self, lines_dict):
+    def ShouldSellShort(self, lines_dict, current_value = 999999999.9, take_profit_value = -1.0, program_start = True):
+        if not program_start and take_profit_value >  0.0:
+            if current_value <= take_profit_value:
+                print("TOOK PROFIT SHORT")
+                return True
+
         return self.ShouldLong(lines_dict)
 
     def ShouldLong(self, lines_dict):
+
         return lines_dict[(self.period, self.s )].value > lines_dict[(self.period, self.m)].value \
             and lines_dict[(self.period, self.s )].value > lines_dict[(self.period, self.b)].value
+
     
-    def ShouldSellLong(self, lines_dict):
+    def ShouldSellLong(self, lines_dict, current_value = -999999999.9, take_profit_value = -1.0, program_start = True):
+        if not program_start and take_profit_value >  0.0:
+            if current_value >= take_profit_value:
+                print("TOOK PROFIT LONG")
+                return True
+
         return self.ShouldShort(lines_dict)
 
 class TraderStatus(Enum):
@@ -301,7 +315,7 @@ class Trader:
         return ret
 
 class DebugTrader:
-    def __init__(self, symbol, volume, strategy, PIPS_SIZE, PIPS_VALUE, DEBUG = False):
+    def __init__(self, symbol, volume, strategy, PIPS_SIZE, PIPS_VALUE, DEBUG = False, take_profit_pips = -1.0, spread_pips = 0.0):
         self.status = TraderStatus.IDLE
         self.symbol = symbol
         self.volume = volume
@@ -315,28 +329,41 @@ class DebugTrader:
         self.short_profit = 0.0
         self.long_profit = 0.0
 
-        self.num_of_trades = 0
+        self.short_loses = 0.0
+        self.long_loses = 0.0
 
+        self.num_of_trades = 0
+        self.long_trades = 0
+        self.short_trades = 0
+
+        self.bought_for_price = -1.0
+        self.take_profit_value = -1.0
+        self.take_profit_pips = take_profit_pips
+        self.spread_pips = spread_pips
+
+        self.previous_status = TraderStatus.IDLE
         self.DEBUG = DEBUG
     
     def Update(self, lines_dict, current_value):
         try:
+            if self.DEBUG:
+                print("----------- PRICE: ", current_value)
             if self.status == TraderStatus.IDLE:
-                if self.strategy.ShouldShort(lines_dict):
+                if self.strategy.ShouldShort(lines_dict) and (self.previous_status == TraderStatus.LONG or self.previous_status == TraderStatus.IDLE):
                     self.Short(current_value)
-                elif self.strategy.ShouldLong(lines_dict):
+                elif self.strategy.ShouldLong(lines_dict) and (self.previous_status == TraderStatus.SHORT or self.previous_status == TraderStatus.IDLE):
                     self.Long(current_value)
             elif self.status == TraderStatus.SHORT:
-                if self.strategy.ShouldSellShort(lines_dict):
+                if self.strategy.ShouldSellShort(lines_dict, current_value, self.take_profit_value, self.program_start):
                     self.CloseCurrent(current_value)
             elif self.status == TraderStatus.LONG:
-                if self.strategy.ShouldSellLong(lines_dict):
+                if self.strategy.ShouldSellLong(lines_dict, current_value, self.take_profit_value, self.program_start):
                     self.CloseCurrent(current_value)
 
             # if self.CheckTP(current_value):
             #     self.CloseCurrent(current_value, self.status)
-        except:
-            print("EXCEPTION CAUGHT, SLEEPING 30s")
+        except Exception as e:
+            print("EXCEPTION CAUGHT, SLEEPING 30s", e)
             sleep(30)
 
     def Short(self, price):
@@ -345,9 +372,15 @@ class DebugTrader:
         if self.program_start:
             return True
 
+        direction = -1
+
+        self.bought_for_price = price  + direction * self.PIPS_SIZE * self.spread_pips
+        self.take_profit_value = (price + direction * self.take_profit_pips) if self.take_profit_pips > 0.0 else -1.0
+
         if self.DEBUG:
             print("SHORTING FOR:", price)
-        self.bought_for_price = price
+            print("TAKE PROFIT AT:", self.take_profit_value)
+
 
     def Long(self, price):
         self.status = TraderStatus.LONG
@@ -355,16 +388,23 @@ class DebugTrader:
         if self.program_start:
             return True
 
+        direction = 1
+
+        self.bought_for_price = price + direction * self.PIPS_SIZE * self.spread_pips
+        self.take_profit_value = (price + direction * self.take_profit_pips) if self.take_profit_pips > 0.0 else -1.0
+
         if self.DEBUG:
             print("LONGING FOR:", price)
-        self.bought_for_price = price
+            print("TAKE PROFIT AT:", self.take_profit_value)
 
     def CloseCurrent(self, current_price, newStatus = TraderStatus.IDLE):
         assert(self.status != TraderStatus.IDLE)
 
         profit_multiplier = -1 if self.status == TraderStatus.SHORT else 1
 
+        self.previous_status = self.status
         self.status = newStatus
+
         if self.program_start:
             self.program_start = False
             return True
@@ -378,8 +418,14 @@ class DebugTrader:
         self.profit += current_profit
         self.num_of_trades += 1
         if profit_multiplier == -1:
+            self.short_trades += 1
             self.short_profit += current_profit
+            if current_profit < 0:
+                self.short_loses += current_profit
         else:
+            self.long_trades += 1
             self.long_profit += current_profit
+            if current_profit < 0:
+                self.long_loses += current_profit
 
 
