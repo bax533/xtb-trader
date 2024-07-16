@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 import numpy as np
 from scipy.signal import lfiltic, lfilter
-from env import username, password, demo_username, demo_password
+from env import username, password
 from API import XTB, _DEMO
 from abc import ABC, abstractmethod
 
@@ -72,7 +72,7 @@ class MA_Line:
                 closest_under_value = line.value
                 self.line_under = line
     
-    def UpdateValue(self, multiplier = 1.0):
+    def UpdateValue(self, multiplier = 1.0, qty_candles=30):
         sleep(0.5)
         self.API.login()
         sleep(0.5)
@@ -188,10 +188,10 @@ class StrategyUniversal(StrategyAbstract):
             and lines_dict[(self.period, self.s )].value < lines_dict[(self.period, self.b)].value
 
     def ShouldSellShort(self, lines_dict, current_value = 999999999.9, take_profit_value = -1.0, program_start = True):
-        if not program_start and take_profit_value >  0.0:
-            if current_value <= take_profit_value:
-                print("TOOK PROFIT SHORT")
-                return True
+        # if not program_start and take_profit_value > 0.0:
+        #     if current_value <= take_profit_value:
+        #         print("TOOK PROFIT SHORT")
+        #         return True
 
         return self.ShouldLong(lines_dict)
 
@@ -202,10 +202,10 @@ class StrategyUniversal(StrategyAbstract):
 
     
     def ShouldSellLong(self, lines_dict, current_value = -999999999.9, take_profit_value = -1.0, program_start = True):
-        if not program_start and take_profit_value >  0.0:
-            if current_value >= take_profit_value:
-                print("TOOK PROFIT LONG")
-                return True
+        # if not program_start and take_profit_value >  0.0:
+        #     if current_value >= take_profit_value:
+        #         print("TOOK PROFIT LONG")
+        #         return True
 
         return self.ShouldShort(lines_dict)
 
@@ -215,7 +215,7 @@ class TraderStatus(Enum):
     LONG = 3
 
 class Trader:
-    def __init__(self, symbol, volume, strategy, program_start = True, Debug = False):
+    def __init__(self, symbol, volume, strategy, program_start = True, Debug = False, PIPS_SIZE=0.0, PIPS_VALUE=0.0, TP_PIPS=-1.0):
         self.status = TraderStatus.IDLE
         self.symbol = symbol
         self.volume = volume
@@ -226,8 +226,13 @@ class Trader:
         self.program_start = program_start
         self.Debug = Debug
 
+        self.TP_PIPS = TP_PIPS
+        self.PIPS_SIZE = PIPS_SIZE
+        self.PIPS_VALUE = PIPS_VALUE
+
         self.API = XTB(username, password)
-        self.API.login()
+        if not Debug:
+            self.API.login()
     
     def Update(self, lines_dict_sell, lines_dict_buy):
         try:
@@ -255,8 +260,9 @@ class Trader:
             sleep(10)
 
     def Short(self):
-        sleep(0.5)
-        self.API.login()
+        if not self.Debug:
+            sleep(0.5)
+            self.API.login()
         self.status = TraderStatus.SHORT
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
@@ -265,17 +271,21 @@ class Trader:
             print("Returning program start")
             return True
 
-        ret = self.API.make_Trade(self.symbol, 1, 0, self.volume)
+        if not self.Debug:
+            ret = self.API.make_Trade(self.symbol, 1, 0, self.volume, tp_pips=self.TP_PIPS, pips_size=self.PIPS_SIZE, pips_value=self.PIPS_VALUE)
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         print("SLEEPING "+ self.strategy.period + ", SHORTING", current_time, " TIME (PROGRAM)")
-        sleep(sleep_time_after_transaction[self.strategy.period]) # wait one candle
+        
+        if not self.Debug:
+            sleep(sleep_time_after_transaction[self.strategy.period]) # wait one candle
         print("WOKE UP!")
         return ret
 
     def Long(self):
-        sleep(0.5)
-        self.API.login()
+        if not self.Debug:
+            sleep(0.5)
+            self.API.login()
         self.status = TraderStatus.LONG
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
@@ -284,11 +294,14 @@ class Trader:
             print("Returning program start")
             return True
 
-        ret = self.API.make_Trade(self.symbol, 0, 0, self.volume)
+        ret = self.API.make_Trade(self.symbol, 0, 0, self.volume, tp_pips=self.TP_PIPS, pips_size=self.PIPS_SIZE, pips_value=self.PIPS_VALUE)
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
         print("SLEEPING "+ self.strategy.period + ", LONGING", current_time, " TIME (PROGRAM)")
-        sleep(sleep_time_after_transaction[self.strategy.period]) # wait one candle
+
+        if not self.Debug:
+            sleep(sleep_time_after_transaction[self.strategy.period]) # wait one candle
+
         print("WOKE UP!")
         return ret
 
@@ -302,16 +315,17 @@ class Trader:
         if self.program_start:
             self.program_start = False
 
-        self.API.login()
-        current_trades = self.API.get_Trades()
-        ret = []
-        for trade in current_trades:
-            if trade["symbol"] != self.symbol:
-                continue
-
+        if not self.Debug:
             self.API.login()
-            ret.append(self.API.make_Trade(self.symbol, trade["cmd"], 2, trade["volume"], order=trade["order"]))
-            sleep(0.75)
+            current_trades = self.API.get_Trades()
+            ret = []
+            for trade in current_trades:
+                if trade["symbol"] != self.symbol:
+                    continue
+
+                self.API.login()
+                ret.append(self.API.make_Trade(self.symbol, trade["cmd"], 2, trade["volume"], order=trade["order"]))
+                sleep(0.75)
         return ret
 
 class DebugTrader:

@@ -2,7 +2,7 @@ import websocket, json, openpyxl
 from datetime import datetime, timedelta
 from time import sleep
 
-_DEMO = True
+_DEMO = False
 
 class XTB:
     __version__ = "1.0"
@@ -370,7 +370,7 @@ class XTB:
         symbol = result["returnData"]
         return symbol
 
-    def make_Trade(self, symbol, cmd, transaction_type, volume, comment="", order=0, sl=0, tp=0, days=0, hours=0, minutes=0):
+    def make_Trade(self, symbol, cmd, transaction_type, volume, comment="", order=0, sl=0, tp=0, days=0, hours=0, minutes=0, tp_pips=-1.0, pips_size=0.0, pips_value=0.0):
         price = self.get_Candles("M1",symbol,qty_candles=1)
         price = price[1]["open"]+price[1]["close"]
 
@@ -385,17 +385,15 @@ class XTB:
             "US100" : 0.01,
             "EURUSD" : 0.00001,
             "GOLD" : 0.01,
-            "BITCOINCASH": 0.01
+            "BITCOINCASH": 0.01,
+            "BITCOIN": 0.01
         })
 
         expiration = 0
         price = price * price_multiplier_dict[symbol]
 
-        tp_percent = 0.003 # 2.0%
-
-        # tp = float(int(price + ((tp_percent * price) if cmd == 0 else (-tp_percent * price)) + 0.5))
-        # if symbol == "DE40":
-        #     tp = float(int(price*10 + ((tp_percent * price*10) if cmd == 0 else (-tp_percent * price*10)) + 0.5))
+        take_profit_value = 0 if tp_pips <= 0.0 else \
+            (price + (-1 if cmd == 1 else 1) * tp_pips)
 
         now = datetime.now()
         current_time = now.strftime("%H:%M:%S")
@@ -413,7 +411,7 @@ class XTB:
             "price": price,
             "sl": sl,
             "symbol": symbol,
-            "tp": 0,
+            "tp": take_profit_value,
             "type": transaction_type,
             "volume": volume
         }
