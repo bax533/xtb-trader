@@ -72,7 +72,7 @@ class XTB:
         result = json.loads(result)
         return result
 
-    def get_Candles(self, period, symbol, days=0, hours=0, minutes=0, qty_candles=0):
+    def get_Candles(self, period, symbol, days=0, hours=0, minutes=0, qty_candles=0, start_time=None, end_time=None):
         if period=="M1":
             minutes+=qty_candles
             period=1
@@ -103,6 +103,8 @@ class XTB:
         if qty_candles!=0:
             minutes = minutes*2
         start = self.get_ServerTime() - self.to_milliseconds(days=days, hours=hours, minutes=minutes)
+        if start_time != None:
+            start = start_time
         CHART_LAST_INFO_RECORD ={
             "period": period,
             "start": start,
@@ -121,24 +123,26 @@ class XTB:
         candle={}
         qty=len(result["returnData"]["rateInfos"])
 
-        while(qty < qty_candles):
-            sleep(0.25)
-            start -= self.to_milliseconds(minutes=240)
-            CHART_LAST_INFO_RECORD ={
-                "period": period,
-                "start": start,
-                "symbol": symbol
-            }
-            candles_cmd ={
-                "command": "getChartLastRequest",
-                "arguments": {
-                    "info": CHART_LAST_INFO_RECORD
-                }
-            }
-            candles_json = json.dumps(candles_cmd)
-            result = self.send(candles_json)
-            result = json.loads(result)
-            qty=len(result["returnData"]["rateInfos"])
+        # TODO make UT's for getting candle near market pause
+
+        # while(qty < qty_candles):
+        #     sleep(0.25)
+        #     start -= self.to_milliseconds(minutes=240)
+        #     CHART_LAST_INFO_RECORD ={
+        #         "period": period,
+        #         "start": start,
+        #         "symbol": symbol
+        #     }
+        #     candles_cmd ={
+        #         "command": "getChartLastRequest",
+        #         "arguments": {
+        #             "info": CHART_LAST_INFO_RECORD
+        #         }
+        #     }
+        #     candles_json = json.dumps(candles_cmd)
+        #     result = self.send(candles_json)
+        #     result = json.loads(result)
+        #     qty=len(result["returnData"]["rateInfos"])
 
         candle["digits"]=result["returnData"]["digits"]
         if qty_candles==0:
@@ -158,14 +162,27 @@ class XTB:
         #     print(candle)
         #print("RESULT CANDLE EXAMPLE", result["returnData"]["rateInfos"][0])
 
-        for i in range(start_qty, qty):
-            candle={}
-            candle["datetime"]=result["returnData"]["rateInfos"][i]["ctmString"]
-            candle["open"]=result["returnData"]["rateInfos"][i]["open"]
-            candle["close"]=result["returnData"]["rateInfos"][i]["close"]
-            candle["high"]=result["returnData"]["rateInfos"][i]["high"]
-            candle["low"]=result["returnData"]["rateInfos"][i]["low"]
-            candles.append(candle)
+        if not end_time:
+            for i in range(start_qty, qty):
+                candle={}
+                candle["datetime"]=result["returnData"]["rateInfos"][i]["ctmString"]
+                candle["open"]=result["returnData"]["rateInfos"][i]["open"]
+                candle["close"]=result["returnData"]["rateInfos"][i]["close"]
+                candle["high"]=result["returnData"]["rateInfos"][i]["high"]
+                candle["low"]=result["returnData"]["rateInfos"][i]["low"]
+                candles.append(candle)
+        else:
+            for item in result["returnData"]["rateInfos"]:
+                if int(item["ctm"]) > end_time:
+                    break
+                candle={}
+                candle["datetime"]=item["ctmString"]
+                candle["open"]=item["open"]
+                candle["close"]=item["close"]
+                candle["high"]=item["high"]
+                candle["low"]=item["low"]
+                candles.append(candle)
+
         if len(candles)==1:
             return False
         return candles

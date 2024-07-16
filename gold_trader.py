@@ -22,13 +22,13 @@ eurusd_lines_M_sell = {
 }
 
 eurusd_lines_M_buy = {
-    (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period, True),
-    (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period, True),
-    (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period, True)
+    (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period),
+    (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period),
+    (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period)
 }
 
 strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
-trader = Trader(SYMBOL, VOLUME, strat, Debug=True)
+trader = Trader(SYMBOL, VOLUME, strat)
 
 starting = True
 
