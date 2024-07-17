@@ -72,7 +72,7 @@ class XTB:
         result = json.loads(result)
         return result
 
-    def get_Candles(self, period, symbol, days=0, hours=0, minutes=0, qty_candles=0, start_time=None, end_time=None):
+    def get_Candles(self, period, symbol, days=0, hours=0, minutes=0, qty_candles=0, start_time=None, end_time=None, print_candle=False):
         if period=="M1":
             minutes+=qty_candles
             period=1
@@ -119,6 +119,10 @@ class XTB:
         candles_json = json.dumps(candles)
         result = self.send(candles_json)
         result = json.loads(result)
+
+        if print_candle:
+            print(result)
+
         candles=[]
         candle={}
         qty=len(result["returnData"]["rateInfos"])

@@ -4,7 +4,7 @@ from datetime import datetime
 from enum import Enum
 import numpy as np
 from scipy.signal import lfiltic, lfilter
-from env import username, password
+from env import username, password, demo_username, demo_password
 from API import XTB, _DEMO
 from abc import ABC, abstractmethod
 
@@ -43,32 +43,10 @@ class MA_Line:
             user = demo_username
             passw= demo_password
 
-        self.API = XTB(user, passw)
-        self.API.login()
-
     def _CalculateValue(self, closing_values):
         return ewma_linear_filter(np.array(closing_values), self.ema_period)[-1]
-    
-    def UpdateValue(self, multiplier = 1.0, qty_candles=30):
-        sleep(0.5)
-        self.API.login()
-        sleep(0.5)
-        try:
-            candles = self.API.get_Candles(self.chart_period, self.symbol, qty_candles=qty_candles)[1:]
-            closing_values = []
-            
-            if self.candle_behind:
-                closing_values = [(candle["open"] + candle["close"]) * multiplier for candle in candles][:-1] # WITHOUT CURRENT CANDLE
-            else:
-                closing_values = [(candle["open"] + candle["close"]) * multiplier for candle in candles]
 
-            self.value = self._CalculateValue(closing_values)
-        except Exception as e:
-            print("could not get candles", self.chart_period, self.ema_period, self.symbol, datetime.now())
-            print("exception: ", e)
-            return
-
-    def UpdateValueDebug(self, candles, divider):
+    def UpdateValue(self, candles, divider):
         closing_values = [(candle["open"] + candle["close"])/divider for candle in candles]
         self.value = self._CalculateValue(closing_values)
 

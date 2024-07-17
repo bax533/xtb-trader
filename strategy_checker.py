@@ -13,11 +13,15 @@ parser.add_argument('--chart-period', dest='chart_period', type=str, help='symbo
 parser.add_argument('--pips-size', dest='pips_size', type=float, help='pips size')
 parser.add_argument('--pips-value', dest='pips_value', type=float, help='pips value')
 parser.add_argument('--volume', dest='volume', type=float, help='lot volume to analyse')
-parser.add_argument('--num-candles', dest='num_of_candles', type=int, help='num of candles to analyse')
+parser.add_argument('--num-of-candles', dest='num_of_candles', type=int, help='num of candles to analyse')
+parser.add_argument('--take-profit-pips', dest='take_profit_pips', type=float, help='take profit pips')
+parser.add_argument('--spread-pips', dest='spread_pips', type=float, help='spread_pips')
+parser.add_argument('--print-candle', dest='print_candle', type=bool, help='print candle received from API')
+
 args = parser.parse_args()
 
 if args.price_divider:
-    print(args.price_divider)
+    print("PRICE DICIDER", args.price_divider)
 
 if not args.symbol or not args.chart_period:
     print("PROVIDE SYMBOL AND CHART PERIOD ex. --symbol EURUSD --chart-period M30")
@@ -46,7 +50,15 @@ _PLOT = args.plot
 CHART_PERIODS = [args.chart_period]
 SYMBOL = args.symbol
 
+
 num_of_candles = args.num_of_candles if args.num_of_candles else 600
+print("NUM OF CANDLES: ", num_of_candles)
+take_profit_pips = args.take_profit_pips if args.take_profit_pips else -1.0
+spread_pips = args.spread_pips if args.spread_pips else 0.0
+print("spread_pips: ", spread_pips)
+print_candle = args.print_candle if args.print_candle else False
+
+print("TAKE PROFIT: ", take_profit_pips, "pips")
 start_it = 40
 
 price_divider = dict({
@@ -60,7 +72,7 @@ if args.price_divider:
 else:
     price_divider[args.symbol] = 1.0
 
-_WANDB_PROJECT_NAME = "strategy_check_" + SYMBOL + "NO_CANDLES_" + str(num_of_candles-start_it)
+_WANDB_PROJECT_NAME = "XTB_TP_SPREAD_" + SYMBOL + "_NO_CANDLES_one_back_" + str(num_of_candles-start_it)
 
 if _WANDB:
     wandb.login()
@@ -84,8 +96,8 @@ def dict_values_list(lines_dict):
 
 results = []
 
-SMALL_PERIODS = [i for i in range(1, 15)]
-MIDDLE_PERIODS = [i for i in range(2, 36)]
+SMALL_PERIODS = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+MIDDLE_PERIODS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 25, 28,32, 35]
 # SIGNAL_PERIOD = 9
 
 # if (not args.pips_size or not args.pips_value or not args.volume) and not args.print_price:
@@ -99,24 +111,61 @@ print(PIPS_VALUE, "PIPS_VALUE")
 
 combinations = list(product(SMALL_PERIODS, MIDDLE_PERIODS))
 
+tp_pips_to_percent = dict({
+    -1.0: "none",
+    #      BITCOIN 0.03
+    # 500: 2.0,
+    # 750: 2.75,
+    # 1000: 3.5,
+    # 1500: 5,
+    # 2000: 6.5,
+    # 2500: 8,
+    # 3000: 10,
+    # 3500: 11.5,
+    # 4000: 13,
+
+    ##################
+    # GOLD
+    ##################
+    # 2: 1.6,
+    # 3: 2.5,
+    # 4: 3.3,
+    # 5: 4.1,
+    # 6: 4.9,
+    # 7: 5.7,
+    # 8: 6.5,
+    # 9: 7.3,
+    # 10: 8.2,
+    # 11: 9.0,
+    # 12: 9.8,
+    # 13: 10.6,
+    # 14: 11.4,
+    # 15: 12.3,
+    # 16: 13.1,
+    17: 13.9,
+    18: 14.7,
+    19: 15.5,
+    20: 16.3,
+    21: 17.1
+})
 
 for PERIOD in CHART_PERIODS:
     print("CHART PERIOD:", PERIOD)
     sleep(1)
-    candles = API.get_Candles(PERIOD, SYMBOL, qty_candles=num_of_candles)[1:]
+    candles = API.get_Candles(PERIOD, SYMBOL, qty_candles=num_of_candles, print_candle=print_candle)[1:]
     sleep(1)
     for CONFIG in combinations:
 
         smallest_period = CONFIG[0]
         middle_period = CONFIG[1]
+        if smallest_period >= middle_period:
+            continue
 
-        for b in range(1):
-            biggest_period = CONFIG[1] + b
+        for take_profit_pips, tp_percent in tp_pips_to_percent.items():
+            biggest_period = CONFIG[1]
 
-            if smallest_period >= middle_period:
-                continue
-
-            RUN_NAME = str(SYMBOL)+'_'+str(PERIOD)+'_'+str(smallest_period)+'_'+str(middle_period)+'_'+str(biggest_period)
+            RUN_NAME = str(SYMBOL)+'_'+str(PERIOD)+'_'+str(smallest_period)+'_'+str(middle_period)+'_'+str(biggest_period)+ \
+                ("_TP_" + str(tp_percent)) if take_profit_pips > 0.0 else ""
             print(RUN_NAME, "CURRENT RUN")
 
             if _WANDB:
@@ -138,12 +187,11 @@ for PERIOD in CHART_PERIODS:
             us100_lines_M = {
                 (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period),
                 (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period),
-                (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period),
-                # ("SIGNAL", 0) : SIGNAL_Line(SYMBOL, PERIOD, smallest_period, middle_period, SIGNAL_PERIOD)
+                (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period)
             }
 
             strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
-            trader = DebugTrader(SYMBOL, VOLUME, strat, PIPS_SIZE, PIPS_VALUE)
+            trader = DebugTrader(SYMBOL, VOLUME, strat, PIPS_SIZE, PIPS_VALUE, DEBUG = False, take_profit_pips=take_profit_pips, spread_pips=spread_pips)
 
             end_it = num_of_candles - start_it - 1
 
@@ -198,7 +246,10 @@ for PERIOD in CHART_PERIODS:
                     plt.scatter([xs[it]], [ys[it]], color=colors[it], marker=markers[it])
                 
                 if _WANDB:
-                    wandb.log({"current_money": trader.profit, "current_price": cur_price, "current_short_profit": trader.short_profit, "current_long_profit": trader.long_profit, "num_of_trades": trader.num_of_trades})
+                    wandb.log({"current_money": trader.profit, "current_price": cur_price, "current_short_profit": trader.short_profit,
+                        "current_long_profit": trader.long_profit, "num_of_trades": trader.num_of_trades,
+                        "short_loses": trader.short_loses, "long_loses": trader.long_loses,
+                        "short_trades": trader.short_trades, "long_trades": trader.long_trades})
 
             if _PLOT:
                 print("PROFIT:", trader.profit)
@@ -210,8 +261,15 @@ for PERIOD in CHART_PERIODS:
                 plt.show()
 
             if _WANDB:
-                wandb.log({"final_money": trader.profit, "chart_period": PERIOD, "smallest_period": smallest_period, "middle_period" : middle_period, "biggest_period": biggest_period, "final_short_profit": trader.short_profit, "final_long_profit": trader.long_profit, "final_trades": trader.num_of_trades})
+                wandb.log({"final_money": trader.profit, "chart_period": PERIOD, "smallest_period": smallest_period, "middle_period" : middle_period, "biggest_period": biggest_period,
+                    "final_short_profit": trader.short_profit, "final_long_profit": trader.long_profit, "final_num_of_trades": trader.num_of_trades,
+                    "final_short_loses": trader.short_loses, "final_long_loses": trader.long_loses, "final_loses": trader.long_loses + trader.short_loses,
+                        "final_short_trades": trader.short_trades, "final_long_trades": trader.long_trades, "tp_percent": tp_percent})
                 run.finish()
                 wandb.finish()
+            print({"final_money": trader.profit, "chart_period": PERIOD, "smallest_period": smallest_period, "middle_period" : middle_period, "biggest_period": biggest_period,
+                    "final_short_profit": trader.short_profit, "final_long_profit": trader.long_profit, "final_num_of_trades": trader.num_of_trades,
+                    "final_short_loses": trader.short_loses, "final_long_loses": trader.long_loses, "final_loses": trader.long_loses + trader.short_loses,
+                        "final_short_trades": trader.short_trades, "final_long_trades": trader.long_trades})
             sleep(1)
 API.logout()

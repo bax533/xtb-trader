@@ -38,8 +38,8 @@ def TEST_DEBUG():
         (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period)
     }
 
-    candles = API.get_Candles(PERIOD, SYMBOL, start_time=1720477685000, end_time=1720524485000)[1:]
-    start_it = 15
+    candles = API.get_Candles(PERIOD, SYMBOL, qty_candles=40)[1:]#start_time=1720477685000, end_time=1720524485000)[1:]
+    start_it = 30
 
     xs = []
     ys = []
@@ -48,10 +48,10 @@ def TEST_DEBUG():
 
     for i in range(len(candles) - start_it):
         for key, line in lines_sell.items():
-            line.UpdateValueDebug(candles[:i+start_it], price_divider)
+            line.UpdateValueDebug(candles[i:i+start_it+1], price_divider)
             print()
         for key, line in lines_buy.items():
-            line.UpdateValueDebug(candles[:i+start_it], price_divider)
+            line.UpdateValueDebug(candles[i:i+start_it+1], price_divider)
 
         trader.Update(lines_sell, lines_buy)
         print(i, trader.status, 1)
@@ -213,10 +213,10 @@ def TEST_GOLD_CANDLE_CORRECTNESS_AND_STATUS_CORRECTNESS_1():
         assert(trader.status == expect_values_update_2[i])
 
 
-# TEST_DEBUG()
+TEST_DEBUG()
 
-TEST_GOLD_CANDLE_CORRECTNESS_1()
+# TEST_GOLD_CANDLE_CORRECTNESS_1()
 
-TEST_GOLD_CANDLE_CORRECTNESS_AND_STATUS_CORRECTNESS_1()
+# TEST_GOLD_CANDLE_CORRECTNESS_AND_STATUS_CORRECTNESS_1()
 
 #####
