@@ -5,8 +5,11 @@ import numpy as np
 from scipy.signal import lfiltic, lfilter
 import matplotlib.pyplot as plt
 from env import username, password
-from trader import Trader, StrategyUniversal, MA_Line, ewma_linear_filter, TraderStatus
-from API import XTB
+from trader.trader import Trader, TraderStatus
+from strategies.StrategyUniversal import StrategyUniversal
+from lines.MA_Line import MA_Line
+from lines.MACD_Line import MACD_Line
+from API.API import XTB
 import matplotlib
 
 API = XTB(username, password)
@@ -25,18 +28,18 @@ def TEST_DEBUG():
     biggest_period = 13
     price_divider = 100.0
 
-    strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
+    strat = StrategyUniversal(PERIOD)
     trader = Trader(SYMBOL, VOLUME, strat, Debug=True)
     lines_sell = {
-        "s" : MA_Line(SYMBOL, PERIOD, smallest_period),
-        "m" : MA_Line(SYMBOL, PERIOD, middle_period),
-        "b" : MA_Line(SYMBOL, PERIOD, biggest_period)
+        "s" : MA_Line(smallest_period),
+        "m" : MA_Line(middle_period),
+        "b" : MA_Line(biggest_period)
         
     }
     lines_buy = {
-        "s" : MA_Line(SYMBOL, PERIOD, smallest_period),
-        "m" : MA_Line(SYMBOL, PERIOD, middle_period),
-        "b" : MA_Line(SYMBOL, PERIOD, biggest_period)
+        "s" : MA_Line(smallest_period),
+        "m" : MA_Line(middle_period),
+        "b" : MA_Line(biggest_period)
     }
 
     candles = API.get_Candles(PERIOD, SYMBOL, qty_candles=40)[1:]#start_time=1720477685000, end_time=1720524485000)[1:]
@@ -71,32 +74,19 @@ def TEST_DEBUG():
     plt.scatter(xs, ys, color='black')
     plt.show()
 
-def TEST_DEBUG_2():
-    smallest_period = 9
-    middle_period = 13
-    biggest_period = 13
+def TEST_DEBUG_MACD():
+    FAST_EMA = 12
+    SLOW_EMA = 26
+    SIGNAL_EMA = 8
 
     SYMBOL = "GOLD"
     VOLUME = 0.05
     PERIOD = "M30"
-    smallest_period = 9
-    middle_period = 13
-    biggest_period = 13
     price_divider = 100.0
 
-    strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
+    strat = StrategyUniversal(PERIOD)
     trader = Trader(SYMBOL, VOLUME, strat, Debug=True)
-    lines_sell = {
-        "s" : MA_Line(SYMBOL, PERIOD, smallest_period),
-        "m" : MA_Line(SYMBOL, PERIOD, middle_period),
-        "b" : MA_Line(SYMBOL, PERIOD, biggest_period)
-        
-    }
-    lines_buy = {
-        "s" : MA_Line(SYMBOL, PERIOD, smallest_period),
-        "m" : MA_Line(SYMBOL, PERIOD, middle_period),
-        "b" : MA_Line(SYMBOL, PERIOD, biggest_period)
-    }
+    macd_lines = MACD_Lines(FAST_EMA, SLOW_EMA, SIGNAL_EMA)
 
     candles = API.get_Candles(PERIOD, SYMBOL, qty_candles=40)[1:]#start_time=1720477685000, end_time=1720524485000)[1:]
     start_it = 30

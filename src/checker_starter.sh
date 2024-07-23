@@ -17,9 +17,15 @@
 
 # python strategy_checker.py --symbol AUDCHF --chart-period M30 --price-divider 100000.0 --wandb True --pips-size 0.0001 --volume 0.3 --pips-value 13.0 --num-candles 600
 
-python strategy_checker.py --symbol GOLD --chart-period M30 --price-divider 100.0 --pips-size 1.0 --volume 0.05 --pips-value 19.53 --num-of-candles 820 --wandb True --spread-pips 1.0
-python strategy_checker.py --symbol GOLD --chart-period H1 --price-divider 100.0 --pips-size 1.0 --volume 0.05 --pips-value 19.53 --num-of-candles 420 --wandb True --spread-pips 1.0
-python strategy_checker.py --symbol GOLD --chart-period H4 --price-divider 100.0 --pips-size 1.0 --volume 0.05 --pips-value 19.53 --num-of-candles 120 --wandb True --spread-pips 1.0
+python strategy_checker.py --symbol GOLD --chart-period M30 --price-divider 100.0 --pips-size 1.0 --volume 0.05 --pips-value 19.53 --num-of-candles 3000 --wandb True --spread-pips 1.0
+# python strategy_checker.py --symbol GOLD --chart-period M15 --price-divider 100.0 --pips-size 1.0 --volume 0.05 --pips-value 19.53 --num-of-candles 1620 --wandb True --spread-pips 1.0
+# python strategy_checker.py --symbol GOLD --chart-period M5 --price-divider 100.0 --pips-size 1.0 --volume 0.05 --pips-value 19.53 --num-of-candles 4900 --wandb True --spread-pips 1.0
+
+
+# python strategy_checker.py --symbol COCOA --chart-period M30 --price-divider 1.0 --pips-size 1.0 --volume 0.1 --pips-value 3.93 --num-of-candles 820 --wandb True --spread-pips 16.0
+# python strategy_checker.py --symbol COCOA --chart-period M15 --price-divider 1.0 --pips-size 1.0 --volume 0.1 --pips-value 3.93 --num-of-candles 1620 --wandb True --spread-pips 16.0
+# python strategy_checker.py --symbol COCOA --chart-period M5 --price-divider 1.0 --pips-size 1.0 --volume 0.1 --pips-value 3.93 --num-of-candles 4900 --wandb True --spread-pips 16.0
+# python strategy_checker.py --symbol COCOA --chart-period M1 --price-divider 1.0 --pips-size 1.0 --volume 0.1 --pips-value 3.93 --num-of-candles 25000 --wandb True --spread-pips 16.0
 
 # python strategy_checker.py --symbol CARDANO --chart-period H1 --price-divider 10000.0 --wandb True --pips-size 1.0 --volume 6000 --pips-value 23455.0 --num-candles 1680
 

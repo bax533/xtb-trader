@@ -2,7 +2,7 @@ import websocket, json, openpyxl
 from datetime import datetime, timedelta
 from time import sleep
 
-_DEMO = False
+_DEMO = True
 
 class XTB:
     __version__ = "1.0"
@@ -129,24 +129,24 @@ class XTB:
 
         # TODO make UT's for getting candle near market pause
 
-        # while(qty < qty_candles):
-        #     sleep(0.25)
-        #     start -= self.to_milliseconds(minutes=240)
-        #     CHART_LAST_INFO_RECORD ={
-        #         "period": period,
-        #         "start": start,
-        #         "symbol": symbol
-        #     }
-        #     candles_cmd ={
-        #         "command": "getChartLastRequest",
-        #         "arguments": {
-        #             "info": CHART_LAST_INFO_RECORD
-        #         }
-        #     }
-        #     candles_json = json.dumps(candles_cmd)
-        #     result = self.send(candles_json)
-        #     result = json.loads(result)
-        #     qty=len(result["returnData"]["rateInfos"])
+        while(qty < qty_candles):
+            sleep(0.25)
+            start -= self.to_milliseconds(minutes=240)
+            CHART_LAST_INFO_RECORD ={
+                "period": period,
+                "start": start,
+                "symbol": symbol
+            }
+            candles_cmd ={
+                "command": "getChartLastRequest",
+                "arguments": {
+                    "info": CHART_LAST_INFO_RECORD
+                }
+            }
+            candles_json = json.dumps(candles_cmd)
+            result = self.send(candles_json)
+            result = json.loads(result)
+            qty=len(result["returnData"]["rateInfos"])
 
         candle["digits"]=result["returnData"]["digits"]
         if qty_candles==0:

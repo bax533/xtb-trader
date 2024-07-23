@@ -4,9 +4,12 @@ from enum import Enum
 import numpy as np
 from scipy.signal import lfiltic, lfilter
 from env import username, password
-from API import XTB
+from API.API import XTB
 
-from trader import Trader, StrategyUniversal, MA_Line
+from trader.trader import Trader
+from strategies.StrategyUniversal import StrategyUniversal
+
+from lines.MA_Line import MA_Line
 
 def RunTrader(SYMBOL, PERIOD, VOLUME, smallest_period, middle_period, biggest_period,
     buy_candle_behind=False, Debug=False, Verbose=False):
@@ -15,15 +18,15 @@ def RunTrader(SYMBOL, PERIOD, VOLUME, smallest_period, middle_period, biggest_pe
     API.login()
 
     eurusd_lines_M_sell = {
-        "s" : MA_Line(SYMBOL, PERIOD, smallest_period),
-        "m" : MA_Line(SYMBOL, PERIOD, middle_period),
-        "b" : MA_Line(SYMBOL, PERIOD, biggest_period)
+        "s" : MA_Line(smallest_period),
+        "m" : MA_Line(middle_period),
+        "b" : MA_Line(biggest_period)
     }
 
     eurusd_lines_M_buy = {
-        "s" : MA_Line(SYMBOL, PERIOD, smallest_period, buy_candle_behind),
-        "m" : MA_Line(SYMBOL, PERIOD, middle_period, buy_candle_behind),
-        "b" : MA_Line(SYMBOL, PERIOD, biggest_period, buy_candle_behind)
+        "s" : MA_Line(smallest_period),
+        "m" : MA_Line(middle_period),
+        "b" : MA_Line(biggest_period)
     }
 
     strat = StrategyUniversal(PERIOD)

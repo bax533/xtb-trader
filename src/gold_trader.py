@@ -1,4 +1,4 @@
-from trader_runner import RunTrader
+from trader_runner.trader_runner import RunTrader
 
 smallest_period = 9
 middle_period = 13
