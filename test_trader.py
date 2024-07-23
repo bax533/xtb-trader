@@ -28,14 +28,15 @@ def TEST_DEBUG():
     strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
     trader = Trader(SYMBOL, VOLUME, strat, Debug=True)
     lines_sell = {
-        (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period),
-        (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period),
-        (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period)
+        "s" : MA_Line(SYMBOL, PERIOD, smallest_period),
+        "m" : MA_Line(SYMBOL, PERIOD, middle_period),
+        "b" : MA_Line(SYMBOL, PERIOD, biggest_period)
+        
     }
     lines_buy = {
-        (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period),
-        (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period),
-        (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period)
+        "s" : MA_Line(SYMBOL, PERIOD, smallest_period),
+        "m" : MA_Line(SYMBOL, PERIOD, middle_period),
+        "b" : MA_Line(SYMBOL, PERIOD, biggest_period)
     }
 
     candles = API.get_Candles(PERIOD, SYMBOL, qty_candles=40)[1:]#start_time=1720477685000, end_time=1720524485000)[1:]
@@ -48,10 +49,10 @@ def TEST_DEBUG():
 
     for i in range(len(candles) - start_it):
         for key, line in lines_sell.items():
-            line.UpdateValueDebug(candles[i:i+start_it+1], price_divider)
+            line.UpdateValue(candles[i:i+start_it+1], price_divider)
             print()
         for key, line in lines_buy.items():
-            line.UpdateValueDebug(candles[i:i+start_it+1], price_divider)
+            line.UpdateValue(candles[i:i+start_it+1], price_divider)
 
         trader.Update(lines_sell, lines_buy)
         print(i, trader.status, 1)
@@ -59,8 +60,67 @@ def TEST_DEBUG():
         print(i, trader.status, 2)
         xs.append(i)
         ys.append((candles[i+start_it]["open"]+candles[i+start_it]["close"])/price_divider)
-        s.append(lines_sell[(PERIOD, smallest_period)].value)
-        m.append(lines_sell[(PERIOD, middle_period)].value)
+        s.append(lines_sell["s"].value)
+        m.append(lines_sell["m"].value)
+
+
+    plt.plot(xs, s, color='cyan')
+    plt.plot(xs, m, color='blue')
+    # plt.plot(xs, signals, color='red')
+    plt.plot(xs, ys, color='black')
+    plt.scatter(xs, ys, color='black')
+    plt.show()
+
+def TEST_DEBUG_2():
+    smallest_period = 9
+    middle_period = 13
+    biggest_period = 13
+
+    SYMBOL = "GOLD"
+    VOLUME = 0.05
+    PERIOD = "M30"
+    smallest_period = 9
+    middle_period = 13
+    biggest_period = 13
+    price_divider = 100.0
+
+    strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
+    trader = Trader(SYMBOL, VOLUME, strat, Debug=True)
+    lines_sell = {
+        "s" : MA_Line(SYMBOL, PERIOD, smallest_period),
+        "m" : MA_Line(SYMBOL, PERIOD, middle_period),
+        "b" : MA_Line(SYMBOL, PERIOD, biggest_period)
+        
+    }
+    lines_buy = {
+        "s" : MA_Line(SYMBOL, PERIOD, smallest_period),
+        "m" : MA_Line(SYMBOL, PERIOD, middle_period),
+        "b" : MA_Line(SYMBOL, PERIOD, biggest_period)
+    }
+
+    candles = API.get_Candles(PERIOD, SYMBOL, qty_candles=40)[1:]#start_time=1720477685000, end_time=1720524485000)[1:]
+    start_it = 30
+
+    xs = []
+    ys = []
+    s = []
+    m = []
+
+    for i in range(len(candles) - start_it):
+        for key, line in lines_sell.items():
+            line.UpdateValue(candles[i:i+start_it+1], price_divider)
+            print()
+        for key, line in lines_buy.items():
+            line.UpdateValue(candles[i:i+start_it+1], price_divider)
+
+        trader.Update(lines_sell, lines_buy)
+        print(i, trader.status, 1)
+        trader.Update(lines_sell, lines_buy)
+        print(i, trader.status, 2)
+        xs.append(i)
+        ys.append((candles[i+start_it]["open"]+candles[i+start_it]["close"])/price_divider)
+        s.append(lines_sell["s"].value)
+        m.append(lines_sell["m"].value)
 
 
     plt.plot(xs, s, color='cyan')

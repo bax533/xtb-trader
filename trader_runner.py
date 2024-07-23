@@ -15,18 +15,18 @@ def RunTrader(SYMBOL, PERIOD, VOLUME, smallest_period, middle_period, biggest_pe
     API.login()
 
     eurusd_lines_M_sell = {
-        (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period),
-        (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period),
-        (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period)
+        "s" : MA_Line(SYMBOL, PERIOD, smallest_period),
+        "m" : MA_Line(SYMBOL, PERIOD, middle_period),
+        "b" : MA_Line(SYMBOL, PERIOD, biggest_period)
     }
 
     eurusd_lines_M_buy = {
-        (PERIOD, smallest_period) : MA_Line(SYMBOL, PERIOD, smallest_period, buy_candle_behind),
-        (PERIOD, middle_period) : MA_Line(SYMBOL, PERIOD, middle_period, buy_candle_behind),
-        (PERIOD, biggest_period) : MA_Line(SYMBOL, PERIOD, biggest_period, buy_candle_behind)
+        "s" : MA_Line(SYMBOL, PERIOD, smallest_period, buy_candle_behind),
+        "m" : MA_Line(SYMBOL, PERIOD, middle_period, buy_candle_behind),
+        "b" : MA_Line(SYMBOL, PERIOD, biggest_period, buy_candle_behind)
     }
 
-    strat = StrategyUniversal(PERIOD, smallest_period, middle_period, biggest_period)
+    strat = StrategyUniversal(PERIOD)
     trader = Trader(SYMBOL, VOLUME, strat, Debug=Debug, Verbose=Verbose)
 
     starting = True

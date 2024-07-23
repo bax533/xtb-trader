@@ -4,8 +4,8 @@ from datetime import datetime
 from enum import Enum
 import numpy as np
 from scipy.signal import lfiltic, lfilter
-from env import username, password, demo_username, demo_password
-from API import XTB, _DEMO
+from env import username, password
+from API import XTB
 from abc import ABC, abstractmethod
 
 sleep_time_after_transaction = dict({
@@ -35,13 +35,6 @@ class MA_Line:
         self.symbol = symbol
         self.chart_period = chart_period
         self.ema_period = ema_period
-
-        user = username
-        passw = password
-
-        if _DEMO:
-            user = demo_username
-            passw= demo_password
 
     def _CalculateValue(self, closing_values):
         return ewma_linear_filter(np.array(closing_values), self.ema_period)[-1]
@@ -129,15 +122,12 @@ class StrategyAbstract(ABC):
         return self.ShouldLong(lines_dict)
 
 class StrategyUniversal(StrategyAbstract):
-    def __init__(self, period, s, m, b):
+    def __init__(self, period):
         self.period = period
-        self.s = s
-        self.m = m
-        self.b = b
 
     def ShouldShort(self, lines_dict):
-        return lines_dict[(self.period, self.s )].value < lines_dict[(self.period, self.m)].value \
-            and lines_dict[(self.period, self.s )].value < lines_dict[(self.period, self.b)].value
+        return lines_dict["s"].value < lines_dict["m"].value \
+            and lines_dict["s"].value < lines_dict["b"].value
 
     def ShouldSellShort(self, lines_dict, current_value = 999999999.9, take_profit_value = -1.0, program_start = True):
         # if not program_start and take_profit_value > 0.0:
@@ -148,9 +138,8 @@ class StrategyUniversal(StrategyAbstract):
         return self.ShouldLong(lines_dict)
 
     def ShouldLong(self, lines_dict):
-
-        return lines_dict[(self.period, self.s )].value > lines_dict[(self.period, self.m)].value \
-            and lines_dict[(self.period, self.s )].value > lines_dict[(self.period, self.b)].value
+        return lines_dict["s"].value > lines_dict["m"].value \
+            and lines_dict["s"].value > lines_dict["b"].value
 
     
     def ShouldSellLong(self, lines_dict, current_value = -999999999.9, take_profit_value = -1.0, program_start = True):
@@ -160,6 +149,30 @@ class StrategyUniversal(StrategyAbstract):
         #         return True
 
         return self.ShouldShort(lines_dict)
+
+
+class StrategyUniversalWithLongterm(StrategyAbstract):
+    def __init__(self, period):
+        self.period = period
+
+    def ShouldShort(self, lines_dict):
+        return lines_dict["s"].value < lines_dict["m"].value \
+            and lines_dict["s"].value < lines_dict["b"].value \
+            and lines_dict["longterm_s"].value < lines_dict["longterm_m"].value
+
+    def ShouldSellShort(self, lines_dict, current_value = 999999999.9, take_profit_value = -1.0, program_start = True):
+        return lines_dict["s"].value < lines_dict["m"].value \
+            and lines_dict["s"].value < lines_dict["b"].value
+
+    def ShouldLong(self, lines_dict):
+        return lines_dict["s"].value > lines_dict["m"].value \
+            and lines_dict["s"].value > lines_dict["b"].value \
+            and lines_dict["longterm_s"].value > lines_dict["longterm_m"].value
+
+    
+    def ShouldSellLong(self, lines_dict, current_value = -999999999.9, take_profit_value = -1.0, program_start = True):
+        return lines_dict["s"].value > lines_dict["m"].value \
+            and lines_dict["s"].value > lines_dict["b"].value
 
 class TraderStatus(Enum):
     IDLE = 1
@@ -315,20 +328,20 @@ class DebugTrader:
         self.previous_status = TraderStatus.IDLE
         self.DEBUG = DEBUG
     
-    def Update(self, lines_dict, current_value):
+    def Update(self, lines_dict_sell, lines_dict_buy, current_value):
         try:
             if self.DEBUG:
                 print("----------- PRICE: ", current_value)
             if self.status == TraderStatus.IDLE:
-                if self.strategy.ShouldShort(lines_dict) and (self.previous_status == TraderStatus.LONG or self.previous_status == TraderStatus.IDLE):
+                if self.strategy.ShouldShort(lines_dict_buy) and (self.previous_status == TraderStatus.LONG or self.previous_status == TraderStatus.IDLE):
                     self.Short(current_value)
-                elif self.strategy.ShouldLong(lines_dict) and (self.previous_status == TraderStatus.SHORT or self.previous_status == TraderStatus.IDLE):
+                elif self.strategy.ShouldLong(lines_dict_buy) and (self.previous_status == TraderStatus.SHORT or self.previous_status == TraderStatus.IDLE):
                     self.Long(current_value)
             elif self.status == TraderStatus.SHORT:
-                if self.strategy.ShouldSellShort(lines_dict, current_value, self.take_profit_value, self.program_start):
+                if self.strategy.ShouldSellShort(lines_dict_sell, current_value, self.take_profit_value, self.program_start):
                     self.CloseCurrent(current_value)
             elif self.status == TraderStatus.LONG:
-                if self.strategy.ShouldSellLong(lines_dict, current_value, self.take_profit_value, self.program_start):
+                if self.strategy.ShouldSellLong(lines_dict_sell, current_value, self.take_profit_value, self.program_start):
                     self.CloseCurrent(current_value)
 
             # if self.CheckTP(current_value):
